@@ -1,0 +1,8 @@
+'use client';
+import * as Dialog from '@radix-ui/react-dialog';
+import { X, Mail, Compass } from 'lucide-react';
+import { useState } from 'react';
+import { browserDB,demoMode } from '@/lib/supabase';
+import { useApp } from './app-state';
+import { Button } from './ui/button';
+export function AuthDialog(){const s=useApp();const [email,setEmail]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);const enabled=!!browserDB()&&process.env.NEXT_PUBLIC_SIGNUP_ENABLED==='true';return <Dialog.Root open={s.authOpen} onOpenChange={s.setAuthOpen}><Dialog.Portal><Dialog.Overlay className="dialog-overlay"/><Dialog.Content className="dialog-content"><Dialog.Close className="dialog-close icon-button" aria-label="닫기"><X size={20}/></Dialog.Close><Compass size={34} color="#147b60"/><Dialog.Title>나의 진학 정보를 이어서</Dialog.Title><Dialog.Description>로그인하면 관심 학교와 일정을 계정에 저장할 수 있어요.</Dialog.Description>{enabled?<form onSubmit={async e=>{e.preventDefault();setBusy(true);setMessage('');try{const {error}=await browserDB()!.auth.signInWithOtp({email,options:{emailRedirectTo:window.location.origin+'/saved'}});setMessage(error?'메일을 보내지 못했어요. 잠시 후 다시 시도해 주세요.':'이메일의 로그인 링크를 확인해 주세요.');}finally{setBusy(false)}}}><label>이메일<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@example.com"/></label><Button disabled={busy}><Mail size={16}/>{busy?'발송 중':'로그인 메일 받기'}</Button></form>:<p className="inline-note">회원가입 준비 중입니다. 현재 실제 계정 로그인은 제공하지 않습니다.</p>}{demoMode&&<Button variant="outline" onClick={s.startDemo}>이 탭에서 예시 체험하기</Button>}{message&&<p role="status">{message}</p>}<p className="fine">예시 체험은 실제 회원가입이 아니며, 탭을 닫으면 저장 정보가 사라질 수 있습니다.</p></Dialog.Content></Dialog.Portal></Dialog.Root>}

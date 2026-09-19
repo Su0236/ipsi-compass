@@ -1,0 +1,13 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { schools,departments,events } from '../lib/data';
+import { filterSchools,compareSchools,checkSubjects,calendarFile } from '../lib/logic';
+import { profileSchema,schoolSchema,departmentSchema,eventSchema } from '../lib/schemas';
+import { assertPermission,normalizeName,digest } from '../scripts/collect/pipeline';
+test('검색은 유형, 지역, 학년도를 함께 적용한다',()=>{assert.equal(filterSchools(schools,'한빛','외고','서울',2027).length,1);assert.equal(filterSchools(schools,'한빛','외고','경기',2027).length,0);assert.equal(filterSchools(schools,'','전체','전체',2028).length,0)});
+test('비교는 3개 제한, 중복, 누락, 학년도 혼합을 거부한다',()=>{assert.throws(()=>compareSchools(schools,schools.slice(0,4).map(s=>s.id)));assert.throws(()=>compareSchools(schools,['demo-h1','demo-h1']));assert.throws(()=>compareSchools(schools,['missing']));const changed=[schools[0],{...schools[1],evidence:{...schools[1].evidence,year:2028}}];assert.throws(()=>compareSchools(changed,changed.map(s=>s.id)))});
+test('과목 비교는 필수와 권장을 유지하고 교육과정/학년도를 분리한다',()=>{const d=departments[2];const result=checkSubjects(d,['생명과학'],2030,'2022');assert.equal(result.find(r=>r.kind==='required')?.status,'선택됨');assert.equal(result.find(r=>r.subject==='화학')?.status,'추가 확인 필요');assert.throws(()=>checkSubjects(d,[],2029,'2022'));assert.throws(()=>checkSubjects(d,[],2030,'2015'));assert.deepEqual(checkSubjects(departments[3],[],2030,'2022'),[])});
+test('일정 파일은 예시 표시와 종료 다음날을 사용한다',()=>{const ics=calendarFile(events[2]);assert.match(ics,/SUMMARY:\[예시\]/);assert.match(ics,/DTEND;VALUE=DATE:20261024/);assert.ok(ics.endsWith('\r\n'))});
+test('모든 예시 데이터가 스키마에 맞고 공식 출처를 사칭하지 않는다',()=>{schools.forEach(s=>schoolSchema.parse(s));departments.forEach(d=>departmentSchema.parse(d));events.forEach(e=>eventSchema.parse(e));assert.ok(schools.every(s=>s.evidence.sourceUrl===null&&s.evidence.checkedAt===null))});
+test('입학연도 관계와 입력 범위를 검증한다',()=>{assert.equal(profileSchema.safeParse({grade:'중3',region:'서울',highYear:2027,universityYear:2028,field:'전체'}).success,false)});
+test('수집은 명시적 상업 이용 및 검토 전에는 차단한다',()=>{assert.throws(()=>assertPermission({collection_allowed:true,commercial_use:'unknown',reviewed_at:null}));assert.doesNotThrow(()=>assertPermission({collection_allowed:true,commercial_use:'allowed',reviewed_at:'2026-09-19'}));assert.equal(normalizeName('  가상  학교  '),'가상 학교');assert.equal(digest('same'),digest('same'));assert.notEqual(digest('same'),digest('different'))});

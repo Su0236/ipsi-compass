@@ -1,0 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
+import { schools, departments, events } from './data';
+import { schoolSchema,departmentSchema,eventSchema } from './schemas';
+export async function getCatalog(){if(process.env.NEXT_PUBLIC_DATA_MODE!=='live')return {schools,departments,events};const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;if(!url||!key)throw new Error('공식 자료 연결을 준비 중입니다.');const db=createClient(url,key,{auth:{persistSession:false}});const {data,error}=await db.from('catalog_entries').select('kind,payload').eq('status','published').limit(1000);if(error)throw new Error('검토된 자료를 불러오지 못했습니다.');return {schools:(data??[]).filter(x=>x.kind==='school').map(x=>schoolSchema.parse(x.payload)),departments:(data??[]).filter(x=>x.kind==='department').map(x=>departmentSchema.parse(x.payload)),events:(data??[]).filter(x=>x.kind==='event').map(x=>eventSchema.parse(x.payload))};}
